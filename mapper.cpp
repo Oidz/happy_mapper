@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <string>
 #include <iomanip>
+#include <unistd.h>
+#include <tuple>
 
 /* create the x11 window overlay 
  * @param image - the image to tile on the overlay
@@ -20,12 +22,16 @@ void tile_image(const Window &win, const std::string &image);
 
 /* play the sound */
 void sound(const std::string &sound_file);
-void usage(const int argc, const char** argv);
 
-int main(const int argc, const char** argv) {
+std::pair<std::string, std::string>
+usage(const int argc, char* const* argv);
 
-  usage(argc, argv);
-  build_window(argv[1], argv[2]);
+
+int main(const int argc, char* const* argv) {
+
+  std::pair<std::string, std::string> args = usage(argc, argv);
+
+  build_window(args.first, args.second);
   
   return 0;
 }
@@ -48,11 +54,44 @@ void tile_image(const Window &win, const std::string &image) {
   int return_code { system(magic.c_str()) };
 }
 
-void usage(const int argc, const char** argv) {
-  if(argc != 3) {
-    std::cout << "Usage: " << argv[0] << " [image/gif] [sound file]\n";
+std::pair<std::string, std::string>
+usage(const int argc, char* const* argv) {
+  if(argc != 5) {
+    std::cout << "Usage: " << argv[0] << " -i [image/gif] -s [sound file]\n";
     exit(1);
   }
+
+  std::string image, sound_file;
+
+  int c, i{0};
+  while((c = getopt(argc, argv, "i:s:")) != EOF )
+    {
+      switch(c) {
+      case ('i'):
+	image = optarg;
+	++i;
+	break;
+      case ('s'):
+	sound_file = optarg;
+	++i;
+      break;
+      default:
+	break;
+      }
+    }
+
+  FILE *image_check, *sound_check;
+  if( !(image_check = fopen(image.c_str(), "r")) ) {
+    std::cout << "Failed to open image file\n";
+    exit(1);
+  }
+  
+  if ( !(sound_check = fopen(sound_file.c_str(), "r"))) {
+    std::cout << "Failed to open sound file\n";
+    exit(1);
+  }
+
+  return std::make_pair(image, sound_file);
 }
 
 void build_window(const std::string &image, const std::string &sound_file) {
@@ -69,9 +108,6 @@ void build_window(const std::string &image, const std::string &sound_file) {
   // getting basic window info:
   // get default screen of x server:
   int screen_number = DefaultScreen(display);
-
-  // find root window id of the screen
-  int root_window = RootWindow(display, screen_number);
 
   // set attrs in the struct
   XSetWindowAttributes x_window_attributes;
